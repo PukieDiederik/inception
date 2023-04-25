@@ -1,0 +1,73 @@
+services:
+  mariadb:
+    image: mariadb
+    build:
+      context: ./mariadb
+      no_cache: true
+      args:
+        DB_NAME: ${DB_NAME}
+        DB_ADMIN_PASS: ${DB_ADMIN_PASS}
+        WP_DB_USER: ${WP_DB_USER}
+        WP_DB_PASS: ${WP_DB_PASS}
+    container_name: mariadb
+    networks:
+      - inception
+    restart: on-failure
+    pull_policy: build
+    volumes:
+      - v_mariadb:/var/lib/mysql
+    expose:
+      - "3306"
+  wordpress:
+    image: wordpress
+    build:
+      context: ./wordpress
+      no_cache: true
+      args:
+        DB_NAME: ${DB_NAME}
+        WP_DB_USER: ${WP_DB_USER}
+        WP_DB_PASS: ${WP_DB_PASS}
+    container_name: wordpress
+    env_file: .env
+    depends_on:
+      mariadb:
+        condition: service_started
+    networks:
+      - inception
+    restart: on-failure
+    pull_policy: build
+    volumes:
+      - v_wordpress:/var/www/wordpress
+  nginx:
+    image: nginx
+    build:
+      context: ./nginx
+      no_cache: true
+    container_name: nginx
+    depends_on:
+      wordpress:
+        condition: service_started
+    networks:
+      - inception
+    restart: on-failure
+    pull_policy: build
+    ports:
+      - 443:443
+    volumes:
+      - v_wordpress:/var/www/wordpress
+
+networks:
+  inception:
+    driver: bridge
+
+volumes:
+  v_wordpress:
+    driver_opts:
+      type: none
+      o: bind
+      device: ${WP_VOL_LOC}
+  v_mariadb:
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DB_VOL_LOC}
